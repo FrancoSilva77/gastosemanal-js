@@ -2,13 +2,28 @@
 const formulario = document.querySelector('#agregar-gasto');
 const gastoListado = document.querySelector('#gastos ul');
 
+// Leer los datos del formulario
+const nombreInput = document.querySelector('#gasto');
+const cantidadInput = document.querySelector('#cantidad');
+
+let editando;
+
 // Eventos
 eventListeners();
 function eventListeners() {
   document.addEventListener('DOMContentLoaded', preguntarPresupuesto);
 
+  nombreInput.addEventListener('input', datosGasto);
+  cantidadInput.addEventListener('input', datosGasto);
+
   formulario.addEventListener('submit', agregarGasto);
 }
+
+// Objeto principal
+const gastoObj = {
+  nombre: '',
+  cantidad: '',
+};
 
 // Clases
 class Presupuesto {
@@ -34,6 +49,12 @@ class Presupuesto {
   eliminarGasto(id) {
     this.gastos = this.gastos.filter((gasto) => gasto.id !== id);
 
+    this.calcularReastante();
+  }
+  editarGasto(gastoActualizado) {
+    this.gastos = this.gastos.map((gasto) =>
+      gasto.id === gastoActualizado.id ? gastoActualizado : gasto
+    );
     this.calcularReastante();
   }
 }
@@ -93,6 +114,15 @@ class UI {
       btnBorrar.textContent = 'Eliminar x';
       btnBorrar.classList.add('btn', 'btn-danger', 'borrar-gasto');
 
+      // Boton para editar gasto
+      const btnEditar = document.createElement('button');
+      btnEditar.classList.add('btn', 'btn-info');
+      btnEditar.innerHTML = `Editar`;
+
+      btnEditar.onclick = () => cargarEdicion(gasto);
+
+      nuevoGasto.appendChild(btnEditar);
+
       btnBorrar.onclick = () => {
         eliminarGasto(id);
       };
@@ -144,6 +174,11 @@ class UI {
 const ui = new UI();
 let presupuesto;
 
+function reiniciarObjeto() {
+  gastoObj.nombre = '';
+  gastoObj.cantidad = '';
+}
+
 // Funciones
 function preguntarPresupuesto() {
   const presupuestoUsuario = prompt('Cual es tu presupuesto?');
@@ -162,16 +197,18 @@ function preguntarPresupuesto() {
   ui.insertarPresupuesto(presupuesto);
 }
 
-// Agregar gastos
+function datosGasto(e) {
+  // gastoObj[e.target.name] = e.target.value;
+  gastoObj.nombre = nombreInput.value;
+  gastoObj.cantidad = +cantidadInput.value;
+}
 
+// Agregar gastos
 function agregarGasto(e) {
   e.preventDefault();
+  const { cantidad } = gastoObj;
 
-  // Leer los datos del formulario
-  const nombre = document.querySelector('#gasto').value;
-  const cantidad = Number(document.querySelector('#cantidad').value);
-
-  if (nombre === '' || cantidad === '') {
+  if (Object.values(gastoObj).includes('')) {
     ui.imprimirAlerta('Ambos campos son obligatorios', 'error');
     return;
   } else if (cantidad <= 0 || isNaN(cantidad)) {
@@ -180,12 +217,22 @@ function agregarGasto(e) {
   }
 
   // Generar un objeto con el gasto
-  const gasto = { nombre, cantidad, id: Date.now() };
+  // const gasto = { nombre, cantidad, id: Date.now() };
 
   // Agrega un nuevo gasto
-  presupuesto.nuevoGasto(gasto);
+  if (editando) {
+    console.log('editando');
+    presupuesto.editarGasto({ ...gastoObj });
+    editando = false;
+  } else {
+    gastoObj.id = Date.now();
+    presupuesto.nuevoGasto({ ...gastoObj });
 
-  ui.imprimirAlerta('Gasto agregado correctamente');
+    ui.imprimirAlerta('Gasto agregado correctamente');
+  }
+
+  // Reiniciar objeto
+  reiniciarObjeto();
 
   // Imprimir los gastos
   const { gastos, restante } = presupuesto;
@@ -207,4 +254,22 @@ function eliminarGasto(id) {
 
   ui.actualizarRestante(restante);
   ui.comprobarPresupuesto(presupuesto);
+}
+
+function cargarEdicion(gasto) {
+  const { nombre, cantidad, id } = gasto;
+
+  // Llenar los inputs
+  nombreInput.value = nombre;
+  cantidadInput.value = cantidad;
+
+  // LLenar el objeto
+  gastoObj.nombre = nombre;
+  gastoObj.cantidad = cantidad;
+  gastoObj.id = id;
+
+  formulario.querySelector('button[type="submit"]').textContent =
+    'Guardar Cambios';
+
+  editando = true;
 }
